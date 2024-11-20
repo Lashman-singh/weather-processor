@@ -1,67 +1,124 @@
-import urllib.request
 from html.parser import HTMLParser
-import datetime
-import logging
-
-# Set up logging
-logging.basicConfig(filename='weather_app.log', level=logging.ERROR, 
-                    format='%(asctime)s:%(levelname)s:%(message)s')
+import urllib.request
+from datetime import datetime
 
 class WeatherScraper(HTMLParser):
+    """Class that scrapes weather data using HTMLParser"""
+
     def __init__(self):
         super().__init__()
-        self.data = {}
-        self.in_data = False
-        self.current_date = None
-        self.daily_temps = {}
+        self.reset_state()
 
-    def handle_starttag(self, tag, attrs):
-        # Detect relevant data using HTML tag information
-        if tag == 'tr' and ('data-row', 'date') in attrs:
-            # Capture date, temperature data
-            self.in_data = True
-            for attr in attrs:
-                if attr[0] == 'data-date':
-                    self.current_date = attr[1]
+    def reset_state(self):
+        """Resets the parsing state variables."""
+        self.tbody = False
+        self.title = False
+        self.tr = False
+        self.td = False
+        self.count = 0
+        self.maxTemp = 0
+        self.minTemp = 0
+        self.avg = 0
+        self.date = ""
+        self.weather = {}
 
-    def handle_endtag(self, tag):
-        if tag == 'tr' and self.in_data:
-            self.in_data = False
-            if self.current_date and self.daily_temps:
-                self.data[self.current_date] = self.daily_temps
-                self.daily_temps = {}
-
-    def handle_data(self, data):
-      if self.in_data:
-          try:
-              temp_data = data.strip().split()
-              if len(temp_data) == 2 and temp_data[0] == "Max":
-                  max_temp = float(temp_data[1])
-                  self.daily_temps['max_temp'] = max_temp
-                  print(f"Max Temp Found: {max_temp}")  # <-- Add this line to check max temperature
-              elif len(temp_data) == 2 and temp_data[0] == "Min":
-                  min_temp = float(temp_data[1])
-                  self.daily_temps['min_temp'] = min_temp
-                  print(f"Min Temp Found: {min_temp}")  # <-- Add this line to check min temperature
-          except ValueError:
-              logging.error(f"Failed to parse temperature data: {data}")
-
-
-    def scrape_data(self, start_url):
+    def start_scraping(self, url: str):
+        """Scrapes the data from the given URL."""
         try:
-            response = urllib.request.urlopen(start_url)
-            html = response.read().decode('utf-8')
+            with urllib.request.urlopen(url) as response:
+                html = response.read().decode('utf-8')
             self.feed(html)
-            return self.data
+            return self.weather
         except Exception as e:
-            logging.error(f"Error scraping data: {e}")
+            print(f"Error in scraping data: {e}")
             return {}
 
-# Test code for the scraper
-if __name__ == "__main__":
+    def handle_starttag(self, tag, attrs):
+        """Handles HTML start tags."""
+        if tag == "tbody":
+            self.tbody = True
+        elif tag == "abbr" and self.tbody:
+            # Extract date from the 'title' attribute
+            for attr in attrs:
+                if attr[0] == "title":
+                    try:
+                        self.date = datetime.strptime(attr[1], "%B %d, %Y").strftime("%Y-%m-%d")
+                    except ValueError:
+                        self.date = ""
+                    break
+        elif self.tbody and tag == "tr":
+            self.tr = True
+        elif self.tbody and self.tr and tag == "td" and self.count < 3:
+            self.td = True
+
+    def handle_endtag(self, tag):
+        """Handles HTML end tags."""
+        if tag == "td":
+            self.td = False
+            self.count += 1
+        elif tag == "tr":
+            self.tr = False
+            self.count = 0
+
+    def handle_data(self, data):
+        """Handles data between HTML tags."""
+        if self.td and self.date:
+            try:
+                value = float(data)
+                if self.count == 0:
+                    self.maxTemp = value
+                elif self.count == 1:
+                    self.minTemp = value
+                elif self.count == 2:
+                    self.avg = value
+                    # Store the collected temperatures for the date
+                    self.weather[self.date] = {
+                        "Max": self.maxTemp,
+                        "Min": self.minTemp,
+                        "Mean": self.avg
+                    }
+                    # Reset date after storing the data
+                    self.date = ""
+            except ValueError:
+                pass
+
+def scrape_all_data():
+    """Scrapes data from 2010 to the current year dynamically."""
+    base_url = "http://climate.weather.gc.ca/climate_data/daily_data_e.html?StationID=27174&timeframe=2&Year={year}&Month={month}"
+    weather_data = {}
     scraper = WeatherScraper()
-    today = datetime.datetime.now()
-    start_url = f"https://climate.weather.gc.ca/climate_data/daily_data_e.html?StationID=27174&timeframe=2&StartYear=1840&EndYear=2018&Day=1&Year=2018&Month=5"
-    # "http://climate.weather.gc.ca/climate_data/daily_data_e.html?StationID=27174&timeframe=2&StartYear={today.year}&EndYear={today.year}&Day={today.day}&Year={today.year}&Month={today.month}#"
-    weather_data = scraper.scrape_data(start_url)
-    print(weather_data)
+    
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+
+    # Loop through years from 2010 to the current year
+    for year in range(2010, current_year + 1):
+        month = 1  # Start from January
+        while month <= 12:  # Loop through all months
+            if year == current_year and month > current_month:
+                break  # Stop if we reach the current year and month
+            url = base_url.format(year=year, month=month)
+            data = scraper.start_scraping(url)
+            if not data:
+                print(f"No data found for {year}-{month:02d}")
+                break  # Stop if no more data is available
+            weather_data.update(data)
+
+            # Increment month for next iteration
+            month += 1
+
+            # Reset parser state for the next page
+            scraper.reset_state()
+
+    return weather_data
+
+
+
+if __name__ == "__main__":
+    weather = scrape_all_data()
+
+    # Wrap the weather data in a top-level dictionary
+    wrapped_weather = {"weather": weather}
+    
+    # Display the data in the wrapped dictionary format
+    print(wrapped_weather)
