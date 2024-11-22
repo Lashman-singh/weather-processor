@@ -30,6 +30,7 @@ class DBOperations:
                     UNIQUE(sample_date, location)
                 )
             ''')
+            print("Database initialized successfully.")
 
     def save_data(self, weather_data, location):
         """Save new weather data into the database."""

@@ -8,6 +8,7 @@ class WeatherProcessor:
         self.scraper = WeatherScraper()
         self.db = DBOperations()
         self.plotter = PlotOperations()
+        self.db.initialize_db()
 
     def start(self):
         """Main menu for the Weather Processing application."""
@@ -40,7 +41,7 @@ class WeatherProcessor:
     def download_full_data(self):
         """Download and store a full set of weather data for Winnipeg from 2010 to the current year."""
         location = "Winnipeg"
-        start_year = 2010
+        start_year = 2020
         current_year = datetime.now().year
         current_month = datetime.now().month
 
