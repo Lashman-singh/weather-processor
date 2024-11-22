@@ -1,17 +1,38 @@
+"""
+Weather Processor Module.
+
+This module handles the main operations for scraping weather data,
+saving it to a database, and generating plots.
+"""
+
+import logging
 from datetime import datetime, timedelta
 from scrape_weather import WeatherScraper
 from db_operations import DBOperations
 from plot_operations import PlotOperations
 
 class WeatherProcessor:
+    """
+    WeatherProcessor class to manage weather data scraping,
+    database storage, and data visualization.
+    """
+
     def __init__(self):
+        """
+        Initialize WeatherProcessor with instances of WeatherScraper,
+        DBOperations, and PlotOperations. Also initializes the database.
+        """
         self.scraper = WeatherScraper()
         self.db = DBOperations()
         self.plotter = PlotOperations()
         self.db.initialize_db()
 
     def start(self):
-        """Main menu for the Weather Processing application."""
+        """
+        Main menu for the Weather Processing application.
+        Handles user choices for downloading, updating data,
+        and generating plots.
+        """
         while True:
             print("\nWeather Processing App")
             print("1. Download full set of weather data")
@@ -36,10 +57,14 @@ class WeatherProcessor:
                 else:
                     print("Invalid choice. Please enter a number between 1 and 5.")
             except Exception as e:
+                logging.error("Error in main menu: %s", e)
                 print(f"An error occurred: {e}")
 
     def download_full_data(self):
-        """Download and store a full set of weather data for Winnipeg from 2010 to the current year."""
+        """
+        Download and store a full set of weather data for Winnipeg from
+        2020 to the current year.
+        """
         location = "Winnipeg"
         start_year = 2020
         current_year = datetime.now().year
@@ -62,10 +87,13 @@ class WeatherProcessor:
                         print(f"Failed to scrape data for {location} in {year}-{month:02d}")
 
         except Exception as e:
+            logging.error("Error while downloading full data: %s", e)
             print(f"Error while downloading full set of data for {location}: {e}")
 
     def update_data(self):
-        """Update weather data in the database from the last date to today."""
+        """
+        Update weather data in the database from the last date to today.
+        """
         try:
             today = datetime.now().strftime("%Y-%m-%d")
             with self.db.get_db_connection() as cursor:
@@ -88,10 +116,13 @@ class WeatherProcessor:
             else:
                 print("No existing data found in the database. Please download full data first.")
         except Exception as e:
+            logging.error("Error while updating data: %s", e)
             print(f"Error while updating data: {e}")
 
     def generate_box_plot(self):
-        """Generate a box plot for mean temperatures over a year range."""
+        """
+        Generate a box plot for mean temperatures over a year range.
+        """
         try:
             start_year = int(input("Enter start year: "))
             end_year = int(input("Enter end year: "))
@@ -111,12 +142,16 @@ class WeatherProcessor:
             else:
                 print("No data available for the selected year range.")
         except ValueError:
+            logging.error("Invalid input for year range.")
             print("Please enter valid numeric input for the years.")
         except Exception as e:
+            logging.error("Error generating box plot: %s", e)
             print(f"Error generating box plot: {e}")
 
     def generate_line_plot(self):
-        """Generate a line plot for a specific month and year."""
+        """
+        Generate a line plot for a specific month and year.
+        """
         try:
             month = int(input("Enter month (1-12): "))
             year = int(input("Enter year: "))
@@ -135,8 +170,10 @@ class WeatherProcessor:
             else:
                 print("No data available for the selected month and year.")
         except ValueError:
+            logging.error("Invalid input for month or year.")
             print("Please enter valid numeric input for month and year.")
         except Exception as e:
+            logging.error("Error generating line plot: %s", e)
             print(f"Error generating line plot: {e}")
 
 # Run the application
