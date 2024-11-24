@@ -11,7 +11,7 @@ def main():
 
     # Save the weather data into the database (using a fixed location)
     db_operations.save_data(weather_data, location="MyLocation")
-
+ 
     # Step 3: Fetch data from the database for plotting (if needed)
     data = db_operations.fetch_data(location="MyLocation")
     print(data)

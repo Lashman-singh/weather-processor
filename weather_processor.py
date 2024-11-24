@@ -5,65 +5,82 @@ This module handles the main operations for scraping weather data,
 saving it to a database, and generating plots.
 """
 
+import tkinter as tk
+from tkinter import messagebox
 import logging
 from datetime import datetime, timedelta
 from scrape_weather import WeatherScraper
 from db_operations import DBOperations
 from plot_operations import PlotOperations
 
-class WeatherProcessor:
+class WeatherProcessorGUI(tk.Tk):
     """
-    WeatherProcessor class to manage weather data scraping,
-    database storage, and data visualization.
+    WeatherProcessorGUI class to manage the weather data scraping,
+    database storage, and data visualization via a graphical user interface.
     """
 
     def __init__(self):
         """
-        Initialize WeatherProcessor with instances of WeatherScraper,
-        DBOperations, and PlotOperations. Also initializes the database.
+        Initialize the GUI window and set up WeatherScraper, DBOperations,
+        and PlotOperations instances.
         """
+        super().__init__()
+        self.title("Weather Processing App")
+        self.geometry("400x400")
+
+        # Initialize backend components
         self.scraper = WeatherScraper()
         self.db = DBOperations()
         self.plotter = PlotOperations()
         self.db.initialize_db()
 
-    def start(self):
-        """
-        Main menu for the Weather Processing application.
-        Handles user choices for downloading, updating data,
-        and generating plots.
-        """
-        while True:
-            print("\nWeather Processing App")
-            print("1. Download full set of weather data")
-            print("2. Update weather data")
-            print("3. Generate a box plot")
-            print("4. Generate a line plot")
-            print("5. Exit")
-            choice = input("Enter your choice: ")
+        # Set up GUI elements
+        self.create_widgets()
 
-            try:
-                if choice == '1':
-                    self.download_full_data()
-                elif choice == '2':
-                    self.update_data()
-                elif choice == '3':
-                    self.generate_box_plot()
-                elif choice == '4':
-                    self.generate_line_plot()
-                elif choice == '5':
-                    print("Exiting the application.")
-                    break
-                else:
-                    print("Invalid choice. Please enter a number between 1 and 5.")
-            except Exception as e:
-                logging.error("Error in main menu: %s", e)
-                print(f"An error occurred: {e}")
+    def create_widgets(self):
+        """
+        Create all widgets (buttons, labels, etc.) for the GUI.
+        """
+        self.download_button = tk.Button(self, text="Download full set of weather data", command=self.download_full_data)
+        self.download_button.pack(pady=10)
+
+        self.update_button = tk.Button(self, text="Update weather data", command=self.update_data)
+        self.update_button.pack(pady=10)
+
+        self.box_plot_button = tk.Button(self, text="Generate box plot", command=self.generate_box_plot)
+        self.box_plot_button.pack(pady=10)
+
+        self.line_plot_button = tk.Button(self, text="Generate line plot", command=self.generate_line_plot)
+        self.line_plot_button.pack(pady=10)
+
+        # Input fields for box plot
+        self.start_year_label = tk.Label(self, text="Start Year:")
+        self.start_year_label.pack()
+        self.start_year_entry = tk.Entry(self)
+        self.start_year_entry.pack(pady=5)
+
+        self.end_year_label = tk.Label(self, text="End Year:")
+        self.end_year_label.pack()
+        self.end_year_entry = tk.Entry(self)
+        self.end_year_entry.pack(pady=5)
+
+        # Input fields for line plot
+        self.month_label = tk.Label(self, text="Month (1-12):")
+        self.month_label.pack()
+        self.month_entry = tk.Entry(self)
+        self.month_entry.pack(pady=5)
+
+        self.year_label = tk.Label(self, text="Year:")
+        self.year_label.pack()
+        self.year_entry = tk.Entry(self)
+        self.year_entry.pack(pady=5)
+
+        self.exit_button = tk.Button(self, text="Exit", command=self.quit)
+        self.exit_button.pack(pady=10)
 
     def download_full_data(self):
         """
-        Download and store a full set of weather data for Winnipeg from
-        2020 to the current year.
+        Trigger downloading and storing of full weather data.
         """
         location = "Winnipeg"
         start_year = 2020
@@ -86,13 +103,15 @@ class WeatherProcessor:
                     else:
                         print(f"Failed to scrape data for {location} in {year}-{month:02d}")
 
+            messagebox.showinfo("Success", "Full weather data download completed.")
+
         except Exception as e:
             logging.error("Error while downloading full data: %s", e)
-            print(f"Error while downloading full set of data for {location}: {e}")
+            messagebox.showerror("Error", f"Error while downloading full set of data: {e}")
 
     def update_data(self):
         """
-        Update weather data in the database from the last date to today.
+        Trigger updating of weather data in the database.
         """
         try:
             today = datetime.now().strftime("%Y-%m-%d")
@@ -113,19 +132,22 @@ class WeatherProcessor:
                         self.db.save_data(weather_data, location="Winnipeg")
                         print(f"Data for {current_date.strftime('%Y-%m-%d')} updated successfully.")
                     current_date += timedelta(days=1)
+
+                messagebox.showinfo("Success", "Weather data updated successfully.")
             else:
-                print("No existing data found in the database. Please download full data first.")
+                messagebox.showwarning("No Data", "No existing data found. Please download full data first.")
+
         except Exception as e:
             logging.error("Error while updating data: %s", e)
-            print(f"Error while updating data: {e}")
+            messagebox.showerror("Error", f"Error while updating data: {e}")
 
     def generate_box_plot(self):
         """
-        Generate a box plot for mean temperatures over a year range.
+        Trigger the generation of a box plot.
         """
         try:
-            start_year = int(input("Enter start year: "))
-            end_year = int(input("Enter end year: "))
+            start_year = int(self.start_year_entry.get())
+            end_year = int(self.end_year_entry.get())
             data = self.db.fetch_data(location="Winnipeg")
 
             if not data:
@@ -139,22 +161,23 @@ class WeatherProcessor:
 
             if filtered_data:
                 self.plotter.plot_boxplot(filtered_data, start_year, end_year)
+                messagebox.showinfo("Success", "Box plot generated.")
             else:
-                print("No data available for the selected year range.")
+                messagebox.showwarning("No Data", "No data available for the selected year range.")
         except ValueError:
             logging.error("Invalid input for year range.")
-            print("Please enter valid numeric input for the years.")
+            messagebox.showerror("Error", "Please enter valid numeric input for the years.")
         except Exception as e:
             logging.error("Error generating box plot: %s", e)
-            print(f"Error generating box plot: {e}")
+            messagebox.showerror("Error", f"Error generating box plot: {e}")
 
     def generate_line_plot(self):
         """
-        Generate a line plot for a specific month and year.
+        Trigger the generation of a line plot.
         """
         try:
-            month = int(input("Enter month (1-12): "))
-            year = int(input("Enter year: "))
+            month = int(self.month_entry.get())
+            year = int(self.year_entry.get())
             data = self.db.fetch_data(location="Winnipeg")
 
             if not data:
@@ -167,16 +190,18 @@ class WeatherProcessor:
 
             if daily_data:
                 self.plotter.plot_lineplot(daily_data, month, year)
+                messagebox.showinfo("Success", "Line plot generated.")
             else:
-                print("No data available for the selected month and year.")
+                messagebox.showwarning("No Data", "No data available for the selected month and year.")
         except ValueError:
             logging.error("Invalid input for month or year.")
-            print("Please enter valid numeric input for month and year.")
+            messagebox.showerror("Error", "Please enter valid numeric input for month and year.")
         except Exception as e:
             logging.error("Error generating line plot: %s", e)
-            print(f"Error generating line plot: {e}")
+            messagebox.showerror("Error", f"Error generating line plot: {e}")
+
 
 # Run the application
 if __name__ == "__main__":
-    processor = WeatherProcessor()
-    processor.start()
+    app = WeatherProcessorGUI()
+    app.mainloop()
